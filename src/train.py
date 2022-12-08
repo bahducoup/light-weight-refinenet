@@ -257,7 +257,7 @@ def get_arguments():
 
 def create_segmenter(net, pretrained, num_classes):
     """Create Encoder; for now only ResNet [50,101,152]"""
-    from models.resnet import rf_lw50, rf_lw101, rf_lw152
+    from models.resnet import rf_lw50, rf_lw101, rf_lw152, WiderOrDeeper
 
     if str(net) == "50":
         return rf_lw50(num_classes, imagenet=pretrained)
@@ -265,6 +265,8 @@ def create_segmenter(net, pretrained, num_classes):
         return rf_lw101(num_classes, imagenet=pretrained)
     elif str(net) == "152":
         return rf_lw152(num_classes, imagenet=pretrained)
+    elif str(net) == "wod":
+        return WiderOrDeeper(num_classes)
     else:
         raise ValueError("{} is not supported".format(str(net)))
 

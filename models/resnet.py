@@ -127,6 +127,278 @@ class Bottleneck(nn.Module):
         return out
 
 
+class WiderOrDeeperBlockWithConv2(nn.Module):
+    def __init__(
+        self,
+        conv_skip_opts,
+        conv1_opts,
+        conv2_opts
+    ):
+        super().__init__()
+
+        self.conv_skip = nn.Conv2d(**conv_skip_opts)
+
+        conv1 = nn.Conv2d(**conv1_opts)
+        bn = nn.BatchNorm2d(conv1_opts['out_channels'])
+        relu = nn.ReLU(inplace=True)
+        conv2 = nn.Conv2d(**conv2_opts)
+        self.conv_all = nn.Sequential(
+            conv1,
+            bn,
+            relu,
+            conv2
+        )
+        
+    def forward(self, x):
+        conv_skip_out = self.conv_skip(x)
+        conv_all_out = self.conv_all(x)
+        out = conv_skip_out + conv_all_out
+
+        return out
+
+
+class WiderOrDeeperBlockWithRes2(nn.Module):
+    def __init__(
+        self,
+        conv1_opts,
+        conv2_opts
+    ):
+        super().__init__()
+
+        relu = nn.ReLU(inplace=True)
+
+        bn1 = nn.BatchNorm2d(conv1_opts['in_channels'])
+        conv1 = nn.Conv2d(**conv1_opts)
+
+        bn2 = nn.BatchNorm2d(conv2_opts['in_channels'])
+        conv2 = nn.Conv2d(**conv2_opts)
+
+        self.conv_all = nn.Sequential(
+            bn1,
+            relu,
+            conv1,
+            bn2,
+            relu,
+            conv2
+        )
+
+    def forward(self, x):
+        residual = x
+        conv_all_out = self.conv_all(x)
+        out = residual + conv_all_out
+
+        return out
+
+
+class WiderOrDeeperBlockWithConv3(nn.Module):
+    def __init__(
+        self,
+        conv_skip_opts,
+        conv1_opts,
+        conv2_opts,
+        conv3_opts
+    ):
+        super().__init__()
+
+        self.conv_skip = nn.Conv2d(**conv_skip_opts)
+
+        conv1 = nn.Conv2d(**conv1_opts)
+        bn1 = nn.BatchNorm2d(conv1_opts['out_channels'])
+        relu = nn.ReLU(inplace=True)
+        conv2 = nn.Conv2d(**conv2_opts)
+        bn2 = nn.BatchNorm2d(conv2_opts['out_channels'])
+        conv3 = nn.Conv2d(**conv3_opts)
+        self.conv_all = nn.Sequential(
+            conv1,
+            bn1,
+            relu,
+            conv2,
+            bn2,
+            relu,
+            conv3
+        )
+
+    def forward(self, x):
+        conv_skip_out = self.conv_skip(x)
+        conv_all_out = self.conv_all(x)
+        out = conv_skip_out + conv_all_out
+
+        return out
+
+
+class WiderOrDeeper(nn.Module):
+    def __init__(self, numclasses):
+        super().__init__()
+
+        self.relu = nn.ReLU(inplace=True)
+
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=3, bias=False)
+        self.max_pool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.bn1 = nn.BatchNorm2d(64)
+        # relu
+
+        self.block1 = WiderOrDeeperBlockWithConv2(
+            conv_skip_opts={'in_channels': 64, 'out_channels': 128, 'kernel_size': 1, 'stride': 1, 'bias': False},
+            conv1_opts={'in_channels': 64, 'out_channels': 128, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False},
+            conv2_opts={'in_channels': 128, 'out_channels': 128, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False}
+        )
+        self.block2 = WiderOrDeeperBlockWithRes2(
+            conv1_opts={'in_channels': 128, 'out_channels': 128, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False},
+            conv2_opts={'in_channels': 128, 'out_channels': 128, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False}
+        )
+        self.block3 = WiderOrDeeperBlockWithRes2(
+            conv1_opts={'in_channels': 128, 'out_channels': 128, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False},
+            conv2_opts={'in_channels': 128, 'out_channels': 128, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False}
+        )
+
+        self.max_pool2 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.bn2 = nn.BatchNorm2d(128)
+        # relu
+
+        self.block4 = WiderOrDeeperBlockWithConv2(
+            conv_skip_opts={'in_channels': 128, 'out_channels': 256, 'kernel_size': 1, 'stride': 1, 'bias': False},
+            conv1_opts={'in_channels': 128, 'out_channels': 256, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False},
+            conv2_opts={'in_channels': 256, 'out_channels': 256, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False}
+        )
+        self.block5 = WiderOrDeeperBlockWithRes2(
+            conv1_opts={'in_channels': 256, 'out_channels': 256, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False},
+            conv2_opts={'in_channels': 256, 'out_channels': 256, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False}
+        )
+        self.block6 = WiderOrDeeperBlockWithRes2(
+            conv1_opts={'in_channels': 256, 'out_channels': 256, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False},
+            conv2_opts={'in_channels': 256, 'out_channels': 256, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False}
+        )
+
+        self.bn3 = nn.BatchNorm2d(256)
+        # relu
+
+        self.block7 = WiderOrDeeperBlockWithConv2(
+            conv_skip_opts={'in_channels': 256, 'out_channels': 512, 'kernel_size': 1, 'stride': 2, 'bias': False},
+            conv1_opts={'in_channels': 256, 'out_channels': 512, 'kernel_size': 3, 'stride': 2, 'padding': 1, 'bias': False},
+            conv2_opts={'in_channels': 512, 'out_channels': 512, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False}
+        )
+        self.block8 = WiderOrDeeperBlockWithRes2(
+            conv1_opts={'in_channels': 512, 'out_channels': 512, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False},
+            conv2_opts={'in_channels': 512, 'out_channels': 512, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False}
+        )
+        self.block9 = WiderOrDeeperBlockWithRes2(
+            conv1_opts={'in_channels': 512, 'out_channels': 512, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False},
+            conv2_opts={'in_channels': 512, 'out_channels': 512, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False}
+        )
+        self.block10 = WiderOrDeeperBlockWithRes2(
+            conv1_opts={'in_channels': 512, 'out_channels': 512, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False},
+            conv2_opts={'in_channels': 512, 'out_channels': 512, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False}
+        )
+        self.block11 = WiderOrDeeperBlockWithRes2(
+            conv1_opts={'in_channels': 512, 'out_channels': 512, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False},
+            conv2_opts={'in_channels': 512, 'out_channels': 512, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False}
+        )
+        self.block12 = WiderOrDeeperBlockWithRes2(
+            conv1_opts={'in_channels': 512, 'out_channels': 512, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False},
+            conv2_opts={'in_channels': 512, 'out_channels': 512, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False}
+        )
+
+        self.bn4 = nn.BatchNorm2d(512)
+        # relu
+
+        self.block13 = WiderOrDeeperBlockWithConv2(
+            conv_skip_opts={'in_channels': 512, 'out_channels': 1024, 'kernel_size': 1, 'stride': 1, 'bias': False},
+            conv1_opts={'in_channels': 512, 'out_channels': 512, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False},
+            conv2_opts={'in_channels': 512, 'out_channels': 1024, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False}
+        )
+        self.block14 = WiderOrDeeperBlockWithRes2(
+            conv1_opts={'in_channels': 1024, 'out_channels': 512, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False},
+            conv2_opts={'in_channels': 512, 'out_channels': 1024, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False}
+        )
+        self.block15 = WiderOrDeeperBlockWithRes2(
+            conv1_opts={'in_channels': 1024, 'out_channels': 512, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False},
+            conv2_opts={'in_channels': 512, 'out_channels': 1024, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False}
+        )
+
+        self.bn5 = nn.BatchNorm2d(1024)
+        # relu
+
+        self.block16 = WiderOrDeeperBlockWithConv3(
+            conv_skip_opts={'in_channels': 1024, 'out_channels': 2048, 'kernel_size': 1, 'stride': 1, 'bias': False},
+            conv1_opts={'in_channels': 1024, 'out_channels': 512, 'kernel_size': 1, 'stride': 1, 'bias': False},
+            conv2_opts={'in_channels': 512, 'out_channels': 1024, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False},
+            conv3_opts={'in_channels': 1024, 'out_channels': 2048, 'kernel_size': 1, 'stride': 1, 'bias': False}
+        )
+
+        self.bn6 = nn.BatchNorm2d(2048)
+        # relu
+
+        self.block17 = WiderOrDeeperBlockWithConv3(
+            conv_skip_opts={'in_channels': 2048, 'out_channels': 4096, 'kernel_size': 1, 'stride': 1, 'bias': False},
+            conv1_opts={'in_channels': 2048, 'out_channels': 1024, 'kernel_size': 1, 'stride': 1, 'bias': False},
+            conv2_opts={'in_channels': 1024, 'out_channels': 2048, 'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': False},
+            conv3_opts={'in_channels': 2048, 'out_channels': 4096, 'kernel_size': 1, 'stride': 1, 'bias': False}
+        )
+
+        self.bn7 = nn.BatchNorm2d(4096)
+        # relu
+
+        self.conv2 = nn.Conv2d(4096, 512, kernel_size=3, stride=1, padding=1, bias=False)
+        # relu
+        self.conv3 = nn.Conv2d(512, 21, kernel_size=3, stride=1, padding=1, bias=False)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.max_pool1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        
+        x = self.block1(x)
+        x = self.block2(x)
+        x = self.block3(x)
+
+        x = self.max_pool2(x)
+        x = self.bn2(x)
+        x = self.relu(x)
+
+        x = self.block4(x)
+        x = self.block5(x)
+        x = self.block6(x)
+
+        x = self.bn3(x)
+        x = self.relu(x)
+
+        x = self.block7(x)
+        x = self.block8(x)
+        x = self.block9(x)
+        x = self.block10(x)
+        x = self.block11(x)
+        x = self.block12(x)
+        
+        x = self.bn4(x)
+        x = self.relu(x)
+
+        x = self.block13(x)
+        x = self.block14(x)
+        x = self.block15(x)
+        
+        x = self.bn5(x)
+        x = self.relu(x)
+
+        x = self.block16(x)
+        
+        x = self.bn6(x)
+        x = self.relu(x)
+
+        x = self.block17(x)
+        
+        x = self.bn7(x)
+        x = self.relu(x)
+
+        x = self.conv2(x)
+        
+        x = self.relu(x)
+
+        x = self.conv3(x)
+        print(x.shape)
+        exit()
+
+
 class ResNetLW(nn.Module):
     def __init__(self, block, layers, num_classes=21):
         self.inplanes = 64
@@ -278,4 +550,9 @@ def rf_lw152(num_classes, imagenet=False, pretrained=True, **kwargs):
             key = "rf_lw" + bname
             url = models_urls[bname]
             model.load_state_dict(maybe_download(key, url), strict=False)
+    return model
+
+
+def rf_wider_or_deeper(num_classes, imagenet=False, pretrained=False, **kwargs):
+    model = WiderOrDeeper()
     return model
