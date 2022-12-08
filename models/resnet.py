@@ -342,7 +342,36 @@ class WiderOrDeeper(nn.Module):
         # relu
         self.conv3 = nn.Conv2d(512, 21, kernel_size=3, stride=1, padding=1, bias=False)
 
+        self.do = nn.Dropout(p=0.5)
+
+        self.p_ims1d2_outl1_dimred = conv1x1(4096, 512, bias=False)
+        self.mflow_conv_g1_pool = self._make_crp(512, 512, 4)
+        self.mflow_conv_g1_b3_joint_varout_dimred = conv1x1(512, 256, bias=False)
+
+        self.p_ims1d2_outl2_dimred = conv1x1(1024, 256, bias=False)
+        self.adapt_stage2_b2_joint_varout_dimred = conv1x1(256, 256, bias=False)
+        self.mflow_conv_g2_pool = self._make_crp(256, 256, 4)
+        self.mflow_conv_g2_b3_joint_varout_dimred = conv1x1(256, 256, bias=False)
+
+        self.p_ims1d2_outl3_dimred = conv1x1(256, 256, bias=False)
+        self.adapt_stage3_b2_joint_varout_dimred = conv1x1(256, 256, bias=False)
+        self.mflow_conv_g3_pool = self._make_crp(256, 256, 4)
+        self.mflow_conv_g3_b3_joint_varout_dimred = conv1x1(256, 128, bias=False)
+
+        self.p_ims1d2_outl4_dimred = conv1x1(128, 128, bias=False)
+        self.adapt_stage4_b2_joint_varout_dimred = conv1x1(128, 128, bias=False)
+        self.mflow_conv_g4_pool = self._make_crp(128, 128, 4)
+
+        self.clf_conv = nn.Conv2d(
+            128, numclasses, kernel_size=3, stride=1, padding=1, bias=True
+        )
+
+    def _make_crp(self, in_planes, out_planes, stages):
+        layers = [CRPBlock(in_planes, out_planes, stages)]
+        return nn.Sequential(*layers)
+
     def forward(self, x):
+        # L1
         x = self.conv1(x)
         x = self.max_pool1(x)
         x = self.bn1(x)
@@ -354,16 +383,18 @@ class WiderOrDeeper(nn.Module):
 
         x = self.max_pool2(x)
         x = self.bn2(x)
-        x = self.relu(x)
+        l1 = self.relu(x)
 
-        x = self.block4(x)
+        # L2
+        x = self.block4(l1)
         x = self.block5(x)
         x = self.block6(x)
 
         x = self.bn3(x)
-        x = self.relu(x)
+        l2 = self.relu(x)
 
-        x = self.block7(x)
+        # L3
+        x = self.block7(l2)
         x = self.block8(x)
         x = self.block9(x)
         x = self.block10(x)
@@ -375,9 +406,10 @@ class WiderOrDeeper(nn.Module):
 
         x = self.block13(x)
         x = self.block14(x)
-        x = self.block15(x)
+        l3 = self.block15(x)
         
-        x = self.bn5(x)
+        # L4
+        x = self.bn5(l3)
         x = self.relu(x)
 
         x = self.block16(x)
@@ -388,15 +420,58 @@ class WiderOrDeeper(nn.Module):
         x = self.block17(x)
         
         x = self.bn7(x)
-        x = self.relu(x)
+        l4 = self.relu(x)
 
-        x = self.conv2(x)
+        # x = self.conv2(x)
         
-        x = self.relu(x)
+        # x = self.relu(x)
 
-        x = self.conv3(x)
-        print(x.shape)
-        exit()
+        # l4 = self.conv3(x)
+        print("starting decoder") 
+
+        l4 = self.do(l4)
+        l3 = self.do(l3)
+
+        # l2 = self.do(l2)
+        # l1 = self.do(l1)
+        print("dropout")
+
+        x4 = self.p_ims1d2_outl1_dimred(l4)
+        x4 = self.relu(x4)
+        x4 = self.mflow_conv_g1_pool(x4)
+        x4 = self.mflow_conv_g1_b3_joint_varout_dimred(x4)
+        x4 = nn.Upsample(size=l3.size()[2:], mode="bilinear", align_corners=True)(x4)
+        print("passed x4")
+
+        x3 = self.p_ims1d2_outl2_dimred(l3)
+        x3 = self.adapt_stage2_b2_joint_varout_dimred(x3)
+        x3 = x3 + x4
+        x3 = F.relu(x3)
+        x3 = self.mflow_conv_g2_pool(x3)
+        x3 = self.mflow_conv_g2_b3_joint_varout_dimred(x3)
+        x3 = nn.Upsample(size=l2.size()[2:], mode="bilinear", align_corners=True)(x3)
+        print("passed x3")
+
+        x2 = self.p_ims1d2_outl3_dimred(l2)
+        x2 = self.adapt_stage3_b2_joint_varout_dimred(x2)
+        x2 = x2 + x3
+        x2 = F.relu(x2)
+        x2 = self.mflow_conv_g3_pool(x2)
+        x2 = self.mflow_conv_g3_b3_joint_varout_dimred(x2)
+        x2 = nn.Upsample(size=l1.size()[2:], mode="bilinear", align_corners=True)(x2)
+        print("passed x2")
+
+        x1 = self.p_ims1d2_outl4_dimred(l1)
+        print(x1.shape)
+        print(x2.shape)
+        x1 = self.adapt_stage4_b2_joint_varout_dimred(x1)
+        x1 = x1 + x2
+        x1 = F.relu(x1)
+        x1 = self.mflow_conv_g4_pool(x1)
+
+        print("Got there!")
+        out = self.clf_conv(x1)
+        return out
 
 
 class ResNetLW(nn.Module):
