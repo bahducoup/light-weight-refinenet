@@ -2,7 +2,7 @@ import logging
 import re
 
 from models.mobilenet import mbv2
-from models.resnet import rf_lw50, rf_lw101, rf_lw152, WiderOrDeeper
+from models.resnet import rf_lw50, rf_lw101, rf_lw152, WiderOrDeeper, rf_efficient
 
 
 def get_segmenter(
@@ -19,6 +19,8 @@ def get_segmenter(
         return mbv2(num_classes, imagenet=enc_pretrained)
     elif enc_backbone == "wod":
         return WiderOrDeeper(num_classes)
+    elif enc_backbone == 'efficient':
+        return rf_efficient(num_classes)
     else:
         raise ValueError("{} is not supported".format(str(enc_backbone)))
 

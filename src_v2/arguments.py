@@ -41,10 +41,10 @@ def get_arguments():
         "--dec-optim-type", type=str, default="sgd",
     )
     parser.add_argument(
-        "--enc-lr", type=float, default=5e-4,
+        "--enc-lr", type=float, default=5e-5,
     )
     parser.add_argument(
-        "--dec-lr", type=float, default=5e-3,
+        "--dec-lr", type=float, default=5e-4,
     )
     parser.add_argument(
         "--enc-weight-decay", type=float, default=1e-5,
@@ -92,7 +92,7 @@ def get_arguments():
 
     # Training / validation setup
     parser.add_argument(
-        "--enc-backbone", type=str, choices=["50", "101", "152", "mbv2", "wod"], default="50"
+        "--enc-backbone", type=str, choices=["50", "101", "152", "mbv2", "wod", "efficient"], default="50"
     )
     parser.add_argument("--enc-pretrained", type=int, choices=[0, 1], default=1)
     parser.add_argument(

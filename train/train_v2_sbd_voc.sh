@@ -1,6 +1,6 @@
 #!/bin/sh
 PYTHONPATH=$(pwd):$PYTHONPATH python src_v2/train.py \
-    --enc-backbone wod \
+    --enc-backbone efficient \
     --num-stages 2 \
     --num-classes 21 \
     --train-dir './datasets/' \
